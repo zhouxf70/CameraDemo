@@ -23,7 +23,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import com.practice.camerademo.KLog
 import com.practice.camerademo.R
-import com.practice.camerademo.flv.FlvPackage
+import com.practice.camerademo.flv.FlvPacket
 import com.practice.camerademo.image.ImageUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -44,7 +44,7 @@ class CameraActivity : AppCompatActivity(), View.OnClickListener {
     private var cameraSessionValid = false
     private var mMediaEncoder: MediaCodecWrap? = null
     private var mMediaDecoder: MediaCodecWrap? = null
-    private var mFlvPackage: FlvPackage? = null
+    private var mFlvPacket: FlvPacket? = null
 
     private lateinit var btRecord: Button
     private lateinit var btPublish: Button
@@ -159,11 +159,11 @@ class CameraActivity : AppCompatActivity(), View.OnClickListener {
                     state = CaptureState.RECORD
                     btRecord.text = "Stop"
                     val file = File(application.getExternalFilesDir(null), "my_flv.flv")
-                    mFlvPackage = FlvPackage().also { it.start(file) }
-                    mMediaEncoder = MediaCodecWrap(MediaCodecWrap.AVC, 1920, 1080, true, encoderWithSurface = true)
+                    mFlvPacket = FlvPacket().also { it.start(file) }
+                    mMediaEncoder = MediaCodecWrap(MediaCodecWrap.AVC, 1920, 1080, true, encoderBySurface = true)
                     mMediaEncoder?.start { output, bufferInfo ->
                         KLog.d("onEncodedDataAvailable ${output.remaining()}")
-                        mFlvPackage?.writeVideoFrame(output, bufferInfo)
+                        mFlvPacket?.writeVideoFrame(output, bufferInfo)
                     }
                     startSession()
                 } else {
@@ -171,7 +171,7 @@ class CameraActivity : AppCompatActivity(), View.OnClickListener {
                     btRecord.text = "录制"
                     startSession()
                     mMediaEncoder?.stop()
-                    mFlvPackage?.stop()
+                    mFlvPacket?.stop()
                 }
             R.id.bt_push -> Unit
         }
@@ -220,7 +220,7 @@ class CameraActivity : AppCompatActivity(), View.OnClickListener {
 
     private fun takePhoto(nv21: ByteArray) {
         imgJob = GlobalScope.launch(Dispatchers.IO) {
-            val file = File(application.getExternalFilesDir(null), "pic.jpg").also { KLog.d(it.absolutePath) }
+            val file = File(filesDir, "pic.jpg").also { KLog.d(it.absolutePath) }
             ImageUtils.toPicture(nv21, file)
             toast("save picture:${file.absolutePath}")
         }
@@ -298,8 +298,8 @@ class CameraActivity : AppCompatActivity(), View.OnClickListener {
         mMediaEncoder = null
         mMediaDecoder?.close()
         mMediaDecoder = null
-        mFlvPackage?.stop()
-        mFlvPackage = null
+        mFlvPacket?.stop()
+        mFlvPacket = null
         imgJob?.run {
             if (isActive) cancel()
         }

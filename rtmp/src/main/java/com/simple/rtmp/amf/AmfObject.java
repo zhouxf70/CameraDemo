@@ -87,7 +87,7 @@ public class AmfObject implements AmfData {
                 // End marker not found; reset the stream to the marked position and read an AMF property
                 markInputStream.reset();
                 // Read the property key...
-                String key = AmfString.readStringFrom(in, true);
+                String key = AmfString.readStringFrom(markInputStream, true);
                 size += AmfString.sizeOf(key, true);
                 // ...and the property value
                 AmfData value = AmfDecoder.readFrom(markInputStream);

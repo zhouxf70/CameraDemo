@@ -18,7 +18,7 @@ public class AmfDecoder {
             amfType = AmfType.UNDEFINED;
             KLog.e("Unknown/unimplemented AMF data type: " + amfTypeByte);
         }else {
-            KLog.e("AMF data type: " + amfType);
+            KLog.d("AMF data type: " + amfType);
         }
         AmfData amfData;
         switch (amfType) {

@@ -1,15 +1,14 @@
 package com.simple.rtmp.amf;
 
+import com.simple.rtmp.KLog;
+import com.simple.rtmp.Util;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 
-import com.simple.rtmp.KLog;
-import com.simple.rtmp.Util;
-
 /**
- *
  * @author francois
  */
 public class AmfString implements AmfData {
@@ -113,7 +112,9 @@ public class AmfString implements AmfData {
         return size;
     }
 
-    /** @return the byte size of the resulting AMF string of the specified value */
+    /**
+     * @return the byte size of the resulting AMF string of the specified value
+     */
     public static int sizeOf(String string, boolean isKey) {
         try {
             int size = (isKey ? 0 : 1) + 2 + string.getBytes("ASCII").length;

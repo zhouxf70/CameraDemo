@@ -23,6 +23,8 @@ object FlvConst {
     const val NAL_UNIT_TYPE_EOSTREAM = 11
     const val NAL_UNIT_TYPE_FILL = 12
 
+    val NAL_UNIT_START = byteArrayOf(0x00, 0x00, 0x01)
+
     // video tag
     const val KEY_FRAME: Byte = 0x17
     const val INTER_FRAME: Byte = 0x27
@@ -34,7 +36,7 @@ object FlvConst {
      * 5       has video:0x01    has audio:0x04
      * 6~9   Length of this header
      *
-     * 再加上4和字节的 previous tag length = 0
+     * 再加上4个字节的 previous tag length = 0
      */
     val FLV_HEADER_ONLY_VIDEO = byteArrayOf(0x46, 0x4C, 0x56, 0x01, 0x01, 0, 0, 0, 0x09, 0, 0, 0, 0)
     val FLV_HEADER = byteArrayOf(0x46, 0x4C, 0x56, 0x01, 0x05, 0, 0, 0, 0x09, 0, 0, 0, 0)

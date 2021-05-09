@@ -14,7 +14,7 @@ import java.nio.ByteBuffer
  * H.264 封装成 flv
  */
 @RequiresApi(Build.VERSION_CODES.N)
-class FlvPackage {
+class FlvPacket {
 
     var onlyVideo: Boolean = true
     var fps: Int = 25
@@ -105,6 +105,7 @@ class FlvPackage {
         byteArray[16] = 0x01
         // 17~19 : sps[1] sps[2] sps[3]
         byteArray[17] = sps!!.data[1]
+        // TODO demo里面profile_compatibility 取0x00而不是sps[2]，与博客描述不一致
         byteArray[18] = sps!!.data[2]
         byteArray[19] = sps!!.data[3]
         // 20 : reserved + lengthSizeMinusOne

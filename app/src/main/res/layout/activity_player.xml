@@ -6,6 +6,14 @@
     android:layout_height="match_parent"
     tools:context=".player.PlayerActivity">
 
+    <TextureView
+        android:id="@+id/surface"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintDimensionRatio="9:16"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
     <EditText
         android:id="@+id/et_url"
@@ -19,24 +27,24 @@
         app:layout_constraintTop_toTopOf="parent" />
 
     <Button
-        android:id="@+id/bt_start"
+        android:id="@+id/bt_start_download"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginBottom="16dp"
-        android:text="@string/start"
+        android:text="@string/start_download"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toStartOf="@+id/bt_stop"
+        app:layout_constraintEnd_toStartOf="@+id/bt_start_play_file"
         app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toStartOf="parent" />
 
     <Button
-        android:id="@+id/bt_stop"
+        android:id="@+id/bt_start_play_file"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginBottom="16dp"
-        android:text="@string/stop"
+        android:text="@string/start_play_file"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.5"
-        app:layout_constraintStart_toEndOf="@+id/bt_start" />
+        app:layout_constraintStart_toEndOf="@+id/bt_start_download" />
 </androidx.constraintlayout.widget.ConstraintLayout>

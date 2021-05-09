@@ -10,11 +10,17 @@ import java.io.FileOutputStream
 
 @InternalCoroutinesApi
 fun main() {
-    dtb(1920.0)
-    dtb(1080.0)
+    byteArrToString(byteArrayOf(0x53,0x65,0x72,0x76,0x65,0x72))
 }
 
-private fun dtb(d:Double){
+private fun byteArrToString(array: ByteArray) {
+    array.forEach {
+        print(it.toChar())
+    }
+    println()
+}
+
+private fun dtb(d: Double) {
 //    println(Double.doubleToLongBits(d))
 }
 

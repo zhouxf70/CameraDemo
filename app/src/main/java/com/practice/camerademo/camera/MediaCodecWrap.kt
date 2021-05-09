@@ -17,12 +17,13 @@ import java.nio.ByteBuffer
 
 @RequiresApi(Build.VERSION_CODES.N)
 class MediaCodecWrap(
-    private val type: String,
-    private val width: Int,
-    private val height: Int,
-    private val encoder: Boolean = true,
-    private val encoderBySurface: Boolean = false,
-    private val fps: Int = 25
+        private val type: String,
+        private val width: Int,
+        private val height: Int,
+        private val encoder: Boolean = true,
+        private val encoderBySurface: Boolean = false,
+        private val fps: Int = 25,
+        private val decodeSurface: Surface? = null
 ) {
 
     private var isRunning = false
@@ -46,7 +47,11 @@ class MediaCodecWrap(
                 //createInputSurface only be called after {@link #configure} and before {@link #start}.
                 if (encoderBySurface) encoderSurface = createInputSurface()
             } else {
-                configure(mediaFormat, null, null, 0)
+                configure(mediaFormat, decodeSurface, null, 0)
+                if (decodeSurface != null) {
+                    isRunning = true
+                    start()
+                }
             }
         }
         if (!encoderBySurface) {
@@ -79,7 +84,7 @@ class MediaCodecWrap(
         }
     }
 
-    fun inputData(input: Any) {
+    fun inputData(input: Any, timestamp: Long? = null) {
         if (!isRunning) return
         inputHandler?.post {
             try {
@@ -91,7 +96,9 @@ class MediaCodecWrap(
                         inputBuffer.put(input)
                     else if (input is ByteBuffer)
                         inputBuffer.put(input)
-                    mediaCodec!!.queueInputBuffer(index, 0, inputBuffer.remaining(), System.nanoTime(), 0)
+                    val ts = timestamp ?: System.nanoTime()
+                    KLog.d(inputBuffer.position())
+                    mediaCodec!!.queueInputBuffer(index, 0, inputBuffer.remaining(), ts, 0)
                 }
             } catch (e: Exception) {
                 KLog.e(e)
@@ -151,7 +158,6 @@ class MediaCodecWrap(
 
 
     companion object {
-
 
         const val AVC = "video/avc"
         const val HEVC = "video/hevc"
