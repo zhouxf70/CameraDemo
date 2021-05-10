@@ -23,7 +23,7 @@ object FlvConst {
     const val NAL_UNIT_TYPE_EOSTREAM = 11
     const val NAL_UNIT_TYPE_FILL = 12
 
-    val NAL_UNIT_START = byteArrayOf(0x00, 0x00, 0x01)
+    val NAL_UNIT_START = byteArrayOf(0x00, 0x00, 0x00, 0x01)
 
     // video tag
     const val KEY_FRAME: Byte = 0x17
@@ -47,8 +47,10 @@ object FlvConst {
      * StringLength : 0x0A (即后面onMetaData长度)
      * onMataData
      */
-    val FLV_AMF1 = byteArrayOf(0x02, 0x00, 0x0A, 'o'.toByte(), 'n'.toByte(), 'M'.toByte(), 'e'.toByte(), 't'.toByte(), 'a'.toByte(),
-            'D'.toByte(), 'a'.toByte(), 't'.toByte(), 'a'.toByte())
+    val FLV_AMF1 = byteArrayOf(
+        0x02, 0x00, 0x0A, 'o'.toByte(), 'n'.toByte(), 'M'.toByte(), 'e'.toByte(), 't'.toByte(), 'a'.toByte(),
+        'D'.toByte(), 'a'.toByte(), 't'.toByte(), 'a'.toByte()
+    )
 
     /**
      * metaData 第二个AMF的duration   2+8+1+8
@@ -57,8 +59,10 @@ object FlvConst {
      * AmfDataTypeNumber : 0x00
      * Number占8个字节，这里duration先置为0
      */
-    val FLV_AMF2_DURATION = byteArrayOf(0x00, 0x08, 'd'.toByte(), 'u'.toByte(), 'r'.toByte(), 'a'.toByte(), 't'.toByte(), 'i'.toByte(), 'o'.toByte(), 'n'.toByte(),
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)
+    val FLV_AMF2_DURATION = byteArrayOf(
+        0x00, 0x08, 'd'.toByte(), 'u'.toByte(), 'r'.toByte(), 'a'.toByte(), 't'.toByte(), 'i'.toByte(), 'o'.toByte(), 'n'.toByte(),
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    )
 
     /**
      * metaData 第二个AMF的width   2+5+1+8
@@ -67,8 +71,10 @@ object FlvConst {
      * AmfDataTypeNumber : 0x00
      * Number占8个字节，这里width先置为1920.0 = 64 158 0 0 0 0 0 0
      */
-    val FLV_AMF2_WIDTH = byteArrayOf(0x00, 0x05, 'w'.toByte(), 'i'.toByte(), 'd'.toByte(), 't'.toByte(), 'h'.toByte(),
-            0x00, 64.toByte(), 158.toByte(), 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)
+    val FLV_AMF2_WIDTH = byteArrayOf(
+        0x00, 0x05, 'w'.toByte(), 'i'.toByte(), 'd'.toByte(), 't'.toByte(), 'h'.toByte(),
+        0x00, 64.toByte(), 158.toByte(), 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    )
 
     /**
      * metaData 第二个AMF的height   2+6+1+8
@@ -77,8 +83,10 @@ object FlvConst {
      * AmfDataTypeNumber : 0x00
      * Number占8个字节，这里height先置为1080.0 = 64 144 224 0 0 0 0 0
      */
-    val FLV_AMF2_HEIGHT = byteArrayOf(0x00, 0x06, 'h'.toByte(), 'e'.toByte(), 'i'.toByte(), 'g'.toByte(), 'h'.toByte(), 't'.toByte(),
-            0x00, 64.toByte(), 144.toByte(), 224.toByte(), 0x00, 0x00, 0x00, 0x00, 0x00)
+    val FLV_AMF2_HEIGHT = byteArrayOf(
+        0x00, 0x06, 'h'.toByte(), 'e'.toByte(), 'i'.toByte(), 'g'.toByte(), 'h'.toByte(), 't'.toByte(),
+        0x00, 64.toByte(), 144.toByte(), 224.toByte(), 0x00, 0x00, 0x00, 0x00, 0x00
+    )
 
     const val FLV_DATA_TYPE_AUDIO: Byte = 0x08
     const val FLV_DATA_TYPE_VIDEO: Byte = 0x09

@@ -30,6 +30,9 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.io.File
+import java.io.FileOutputStream
+import java.io.OutputStream
+import java.nio.ByteBuffer
 
 @RequiresApi(Build.VERSION_CODES.N)
 class CameraActivity : AppCompatActivity(), View.OnClickListener {
@@ -45,6 +48,7 @@ class CameraActivity : AppCompatActivity(), View.OnClickListener {
     private var mMediaEncoder: MediaCodecWrap? = null
     private var mMediaDecoder: MediaCodecWrap? = null
     private var mFlvPacket: FlvPacket? = null
+    private var mFileOutputStream: OutputStream? = null
 
     private lateinit var btRecord: Button
     private lateinit var btPublish: Button
@@ -158,11 +162,15 @@ class CameraActivity : AppCompatActivity(), View.OnClickListener {
                 if (state == CaptureState.PREVIEW) {
                     state = CaptureState.RECORD
                     btRecord.text = "Stop"
-                    val file = File(application.getExternalFilesDir(null), "my_flv.flv")
+                    val file = File(filesDir, "my_flv.flv")
+                    val avcFile = File(filesDir, "acv").apply {
+                        if (!exists()) createNewFile().also { print("create") }
+                    }
                     mFlvPacket = FlvPacket().also { it.start(file) }
                     mMediaEncoder = MediaCodecWrap(MediaCodecWrap.AVC, 1920, 1080, true, encoderBySurface = true)
                     mMediaEncoder?.start { output, bufferInfo ->
                         KLog.d("onEncodedDataAvailable ${output.remaining()}")
+                        writeAvcToFile(output, avcFile)
                         mFlvPacket?.writeVideoFrame(output, bufferInfo)
                     }
                     startSession()
@@ -172,9 +180,20 @@ class CameraActivity : AppCompatActivity(), View.OnClickListener {
                     startSession()
                     mMediaEncoder?.stop()
                     mFlvPacket?.stop()
+                    mFileOutputStream?.close()
                 }
             R.id.bt_push -> Unit
         }
+    }
+
+    private fun writeAvcToFile(output: ByteBuffer, avcFile: File) {
+        if (mFileOutputStream == null)
+            mFileOutputStream = FileOutputStream(avcFile)
+        val byteArray = ByteArray(output.remaining())
+        for (i in byteArray.indices) {
+            byteArray[i] = output.get(i)
+        }
+        mFileOutputStream?.write(byteArray)
     }
 
     private var imgJob: Job? = null
@@ -211,7 +230,7 @@ class CameraActivity : AppCompatActivity(), View.OnClickListener {
     private val gif = ArrayList<ByteArray>(GIF_PICTURE_SIZE)
     private fun takeGif() {
         imgJob = GlobalScope.launch(Dispatchers.IO) {
-            val file = File(application.getExternalFilesDir(null), "my_gif.gif").also { KLog.d(it.absolutePath) }
+            val file = File(filesDir, "my_gif.gif").also { KLog.d(it.absolutePath) }
             ImageUtils.toGif(gif, file)
             toast("save gif:${file.absolutePath}")
             gif.clear()
@@ -231,7 +250,7 @@ class CameraActivity : AppCompatActivity(), View.OnClickListener {
         mMediaDecoder!!.start { output, _ ->
             val size = output.remaining()
             KLog.d("after decoder : $size")
-            val file = File(application.getExternalFilesDir(null), "pic_${System.currentTimeMillis()}.jpg").also { KLog.d(it.absolutePath) }
+            val file = File(filesDir, "pic_${System.currentTimeMillis()}.jpg").also { KLog.d(it.absolutePath) }
             val byteArray = ByteArray(size)
             output.get(byteArray)
             ImageUtils.toPicture(byteArray, file, needAlign = true)

@@ -222,26 +222,29 @@ class FlvPacket {
     private val byte1: Byte = 1
     private fun findNalUnit(buffer: ByteBuffer, findStart: Int): NalUnit {
         val bufferSize = buffer.remaining()
-        buffer.slice()
         if (findStart >= bufferSize - 3) return NalUnit(-1, -1, -1)
 
         var start = -1
         var end = -1
         var type = -1
-        for (i in findStart..(bufferSize - 3) step 3) {
-            if (buffer[i] == byte0 && buffer[i + 1] == byte0)
-                if (buffer[i + 2] == byte1 || (i + 3 < bufferSize && buffer[i + 2] == byte0 && buffer[i + 3] == byte1))
-                    if (start < 0 && i < bufferSize - 3) {
-                        start = if (buffer[i + 2] == byte1) i + 3 else i + 4
-                    } else if (end < 0) end = i - 1
-                    else break
+        var index = findStart
+        while (index < bufferSize - 4) {
+            if (buffer[index] == byte0 && buffer[index + 1] == byte0)
+                if (buffer[index + 2] == byte1 || (buffer[index + 2] == byte0 && buffer[index + 3] == byte1))
+                    if (start < 0) {
+                        index += if (buffer[index + 2] == byte1) 2 else 3
+                        start = index + 1
+                    } else if (end < 0) {
+                        end = index - 1
+                        index += if (buffer[index + 2] == byte1) 2 else 3
+                    } else break
+            index++
         }
         if (start > 0 && end < 0) end = bufferSize - 1
         if (start < end) {
             // Nal 第一个字节的低5位是 type
             val typeByte = buffer[start]
             type = typeByte.toInt() and 0x1f
-            start++
         }
         val nalUnit = NalUnit(start, end, type)
         if (type == FlvConst.NAL_UNIT_TYPE_SPS || type == FlvConst.NAL_UNIT_TYPE_PPS) {

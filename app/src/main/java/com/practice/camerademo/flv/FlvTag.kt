@@ -4,7 +4,7 @@ import java.nio.ByteBuffer
 
 data class FlvTag(
         val type: Byte,
-        val size: Int,
+        val size: Int, // 该值不是NalUnit的长度
         val timeStamp: Int
 ) {
     // NalUnit

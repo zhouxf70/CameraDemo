@@ -21,7 +21,7 @@ class FlvUnpack {
         start = true
         // 必须使用这个，不然AmfObject中使用mark容易出错
         input = BufferedInputStream(inputStream)
-        readHeader()
+        readFlvHeader()
         readTag()
     }
 
@@ -33,7 +33,12 @@ class FlvUnpack {
 
     private fun readTag() {
         while (start) {
-            val tag = readTagHeader() ?: break
+            val tag = readTagHeader()
+            if (tag == null) {
+                callback?.onFlvTagAvailable(null)
+                start = false
+                break
+            }
             when (tag.type) {
                 FlvConst.FLV_DATA_TYPE_SCRIPT -> {
                     val amf1 = AmfString.readStringFrom(input, false).also { KLog.d("amfString : $it") }
@@ -51,9 +56,7 @@ class FlvUnpack {
                         else -> throw Exception("Unable to resolve frame type : $frameType")
                     }
                 }
-                FlvConst.FLV_DATA_TYPE_AUDIO -> {
-                    setAudioTag(tag)
-                }
+                FlvConst.FLV_DATA_TYPE_AUDIO -> setAudioTag(tag)
             }
             // 读取previousTagLength并检测长度是否正确
             val previousTagLength = Util.readUnsignedInt32(input)
@@ -73,11 +76,9 @@ class FlvUnpack {
         repeat(3) { input.read() }
         // 4个字节的NalU长度
         val nalULen = Util.readUnsignedInt32(input)
-        // 3个字节的NalU头和一个字节的type
+        // 4个字节的NalU头
         val nalUBuffer = ByteBuffer.allocate(nalULen + 4)
         nalUBuffer.put(FlvConst.NAL_UNIT_START)
-        if (isKey) nalUBuffer.put(FlvConst.NAL_UNIT_TYPE_IDR.toByte())
-        else nalUBuffer.put(FlvConst.NAL_UNIT_TYPE_SLICE.toByte())
         // put data
         val buf = ByteArray(nalUBuffer.remaining())
         input.read(buf)
@@ -98,25 +99,26 @@ class FlvUnpack {
         acvConfig = true
 
         // 包含sps和pps的两个NalUnit
-        // data 里面16字节不用写入NalUnit，但是需要加上2个NalU头 00 00 01和两个NalU的type
+        // data 里面16字节不用写入NalUnit，但是需要加上2个NalU头 00 00 00 01
         val configBuffer = ByteBuffer.allocate(tag.size - 16 + 8)
-        // 跳过8个字节，后面还有6字节的sps、pps长度，再加上前面的frameType和packetType，共16个字节
+        // 跳过8个字节，后面还有6字节的sps/pps的数量/长度，再加上前面的frameType和packetType，共16个字节
         repeat(8) { input.read() }
+        // 后5位标识长度
         // TODO 不止一个sps，遇到再解决
-        input.read().also { if (it != 1) throw Exception("Unable to resolve sps size : $it") }
+        val spsSize = input.read() and 0x1f
+        if (spsSize != 1) throw Exception("Unable to resolve pps size : $spsSize")
         // sps长度(2)
         val spsLength = Util.readUnsignedInt16(input)
         configBuffer.put(FlvConst.NAL_UNIT_START)
-        configBuffer.put(FlvConst.NAL_UNIT_TYPE_SPS.toByte())
         val bufSps = ByteArray(spsLength)
         input.read(bufSps)
         configBuffer.put(bufSps)
         // TODO 不止一个pps，遇到再解决
-        input.read().also { if (it != 1) throw Exception("Unable to resolve pps size : $it") }
+        val ppsSize = input.read() and 0x1f
+        if (ppsSize != 1) throw Exception("Unable to resolve pps size : $ppsSize")
         // pps长度(2)
         val ppsLength = Util.readUnsignedInt16(input)
         configBuffer.put(FlvConst.NAL_UNIT_START)
-        configBuffer.put(FlvConst.NAL_UNIT_TYPE_PPS.toByte())
         val bufPps = ByteArray(ppsLength)
         input.read(bufPps)
         configBuffer.put(bufPps)
@@ -144,10 +146,10 @@ class FlvUnpack {
         }
         // stream id : useless
         repeat(3) { input.read() }
-        return FlvTag(type.toByte(), len, timestamp).also { KLog.d("tag header : $it") }
+        return FlvTag(type.toByte(), len, timestamp)
     }
 
-    private fun readHeader() {
+    private fun readFlvHeader() {
         // 9个字节FLV文件头和4个字节previous tag length
         val header = ByteArray(13)
         input.read(header)
@@ -197,6 +199,6 @@ class FlvUnpack {
     }
 
     interface Callback {
-        fun onFlvTagAvailable(tag: FlvTag)
+        fun onFlvTagAvailable(tag: FlvTag?)
     }
 }

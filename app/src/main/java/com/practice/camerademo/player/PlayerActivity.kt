@@ -16,6 +16,7 @@ import com.practice.camerademo.camera.MediaCodecWrap
 import com.practice.camerademo.flv.FlvConst
 import com.practice.camerademo.flv.FlvTag
 import com.practice.camerademo.flv.FlvUnpack
+import com.practice.camerademo.image.ImageUtils
 import com.simple.rtmp.DefaultRtmpClient
 import com.simple.rtmp.RtmpClient
 import com.simple.rtmp.output.FlvWriter
@@ -37,9 +38,10 @@ class PlayerActivity : AppCompatActivity(), View.OnClickListener {
     private var rtmpClient: RtmpClient? = null
     private lateinit var rtmpWriter: RtmpStreamWriter
 
-    private var fileInputStream: FileInputStream? = null
-    private var flvUnpack: FlvUnpack? = null
-    private var videoCodec: MediaCodecWrap? = null
+    private var mFileInputStream: FileInputStream? = null
+    private var mFileOutputStream: FileOutputStream? = null
+    private var mFlvUnpack: FlvUnpack? = null
+    private var mVideoCodec: MediaCodecWrap? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -61,19 +63,25 @@ class PlayerActivity : AppCompatActivity(), View.OnClickListener {
 
     private fun initCodec() {
         val texture = mTextureView.surfaceTexture
-        texture.setDefaultBufferSize(1080, 1920)
+//        texture.setOnFrameAvailableListener {  }
+//        texture.setDefaultBufferSize(1920, 1080)
         val surface = Surface(texture)
-        videoCodec = MediaCodecWrap(MediaCodecWrap.AVC, 1080, 1920, encoder = false).apply {
-            start { byteBuffer, _ ->
-                KLog.d(byteBuffer.remaining())
-            }
-        }
+        mVideoCodec = MediaCodecWrap(MediaCodecWrap.AVC, 1920, 1080, encoder = false, decodeSurface = surface)
+//        mVideoCodec = MediaCodecWrap(MediaCodecWrap.AVC, 1920, 1080, encoder = false).apply {
+//            start { byteBuffer, _ ->
+//                val byteArray = ByteArray(byteBuffer.remaining())
+//                byteBuffer.get(byteArray)
+//                val picFile = File(filesDir, "decoded_pic_${System.currentTimeMillis()}.jpg")
+//                ImageUtils.toPicture(byteArray, picFile, needAlign = true)
+//            }
+//        }
     }
 
     override fun onClick(v: View?) {
         when (v?.id) {
             R.id.bt_start_download -> {
                 if (mState == State.PREPARE) {
+                    mState = State.DOWNLOADING
                     btDownload.setText(R.string.stop)
                     startDownload()
                 } else {
@@ -83,11 +91,12 @@ class PlayerActivity : AppCompatActivity(), View.OnClickListener {
             }
             R.id.bt_start_play_file -> {
                 if (mState == State.PREPARE) {
+                    mState = State.PLAYING
                     btPlayFlie.setText(R.string.stop)
                     startPlayFile()
                 } else {
                     btPlayFlie.setText(R.string.start_play_file)
-                    flvUnpack?.close()
+                    mFlvUnpack?.close()
                 }
             }
         }
@@ -107,21 +116,53 @@ class PlayerActivity : AppCompatActivity(), View.OnClickListener {
 
     private fun startPlayFile() {
         KLog.t("start play flv")
-        val file = File(filesDir, "rtmp.flv")
-        fileInputStream = FileInputStream(file)
-        flvUnpack = FlvUnpack().apply {
+        val file = File(filesDir, "my_flv.flv")
+        mFileInputStream = FileInputStream(file)
+
+//        val avcFile = File(filesDir, "my_flv_avc")
+//        mFileOutputStream = FileOutputStream(avcFile)
+
+        mFlvUnpack = FlvUnpack().apply {
             callback = object : FlvUnpack.Callback {
-                override fun onFlvTagAvailable(tag: FlvTag) {
+                override fun onFlvTagAvailable(tag: FlvTag?) {
+                    if (tag == null) {
+                        stop()
+                        return
+                    }
                     when (tag.type) {
                         FlvConst.FLV_DATA_TYPE_SCRIPT -> Unit
                         FlvConst.FLV_DATA_TYPE_AUDIO -> Unit
-                        FlvConst.FLV_DATA_TYPE_VIDEO -> videoCodec?.inputData(tag.data!!, tag.timeStamp.toLong())
+                        FlvConst.FLV_DATA_TYPE_VIDEO -> {
+                            mVideoCodec?.inputData(tag.data!!, tag.timeStamp.toLong())
+                        }
                     }
                 }
             }
         }
         Thread {
-            flvUnpack?.start(fileInputStream!!)
+            mFlvUnpack?.start(mFileInputStream!!)
         }.start()
+    }
+
+    private fun stop() {
+        mState = State.PREPARE
+        runOnUiThread {
+            btDownload.setText(R.string.start_download)
+            btPlayFlie.setText(R.string.start_play_file)
+        }
+
+        rtmpClient?.shutdown()
+        rtmpClient = null
+        mFlvUnpack?.close()
+        mFlvUnpack = null
+        mFileOutputStream?.close()
+        mFileOutputStream = null
+    }
+
+    override fun onStop() {
+        super.onStop()
+        rtmpClient?.shutdown()
+        mFlvUnpack?.close()
+        mFileOutputStream?.close()
     }
 }

@@ -80,6 +80,7 @@ class MediaCodecWrap(
                 }
             } catch (e: Exception) {
                 KLog.e(e)
+                e.printStackTrace()
             }
         }
     }
@@ -88,7 +89,7 @@ class MediaCodecWrap(
         if (!isRunning) return
         inputHandler?.post {
             try {
-                val index = mediaCodec!!.dequeueInputBuffer(100)
+                val index = mediaCodec!!.dequeueInputBuffer(-1)
                 KLog.t("inputData, index = $index")
                 if (index >= 0 && isRunning) {
                     val inputBuffer = mediaCodec!!.getInputBuffer(index)!!
