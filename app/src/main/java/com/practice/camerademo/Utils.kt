@@ -7,7 +7,7 @@ import java.nio.ByteBuffer
  */
 object Utils {
 
-    fun bufferToString(byteBuffer: ByteBuffer): String {
-        return "position = ${byteBuffer.position()}, limit = ${byteBuffer.limit()}, capacity = ${byteBuffer.capacity()}"
+    fun ByteBuffer.toString2(): String {
+        return "position = ${position()}, limit = ${limit()}, capacity = ${capacity()}"
     }
 }

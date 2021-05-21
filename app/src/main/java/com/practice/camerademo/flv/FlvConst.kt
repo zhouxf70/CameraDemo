@@ -69,11 +69,11 @@ object FlvConst {
      * 前两个字节为width 长度 00 05
      * width
      * AmfDataTypeNumber : 0x00
-     * Number占8个字节，这里width先置为1920.0 = 64 158 0 0 0 0 0 0
+     * Number占8个字节，这里width先置为1080.0 = 64 144 224 0 0 0 0 0
      */
     val FLV_AMF2_WIDTH = byteArrayOf(
         0x00, 0x05, 'w'.toByte(), 'i'.toByte(), 'd'.toByte(), 't'.toByte(), 'h'.toByte(),
-        0x00, 64.toByte(), 158.toByte(), 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+        0x00, 64.toByte(), 144.toByte(), 224.toByte(), 0x00, 0x00, 0x00, 0x00, 0x00
     )
 
     /**
@@ -81,11 +81,11 @@ object FlvConst {
      * 前两个字节为height 长度 00 06
      * height
      * AmfDataTypeNumber : 0x00
-     * Number占8个字节，这里height先置为1080.0 = 64 144 224 0 0 0 0 0
+     * Number占8个字节，这里height先置为1920.0 = 64 158 0 0 0 0 0 0
      */
     val FLV_AMF2_HEIGHT = byteArrayOf(
         0x00, 0x06, 'h'.toByte(), 'e'.toByte(), 'i'.toByte(), 'g'.toByte(), 'h'.toByte(), 't'.toByte(),
-        0x00, 64.toByte(), 144.toByte(), 224.toByte(), 0x00, 0x00, 0x00, 0x00, 0x00
+        0x00, 64.toByte(), 158.toByte(), 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
     )
 
     const val FLV_DATA_TYPE_AUDIO: Byte = 0x08

@@ -106,7 +106,8 @@ class FlvPacket {
         // 17~19 : sps[1] sps[2] sps[3]
         byteArray[17] = sps!!.data[1]
         // TODO demo里面profile_compatibility 取0x00而不是sps[2]，与博客描述不一致
-        byteArray[18] = sps!!.data[2]
+//        byteArray[18] = sps!!.data[2]
+        byteArray[18] = 0
         byteArray[19] = sps!!.data[3]
         // 20 : reserved + lengthSizeMinusOne
         byteArray[20] = 0xff.toByte()

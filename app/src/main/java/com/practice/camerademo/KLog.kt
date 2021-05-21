@@ -14,7 +14,7 @@ class KLog {
 
         @JvmField
         var isDebug = true
-        private const val TAG = "KLog-MVP"
+        private const val TAG = "KLog-CAMERA"
 
         @JvmStatic
         fun d(msg: Any?) {

@@ -1,10 +1,9 @@
 package com.practice.camerademo.player
 
-import android.graphics.SurfaceTexture
+import android.media.MediaCodec
+import android.opengl.GLSurfaceView
 import android.os.Build
 import android.os.Bundle
-import android.view.Surface
-import android.view.TextureView
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
@@ -12,18 +11,23 @@ import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import com.practice.camerademo.KLog
 import com.practice.camerademo.R
-import com.practice.camerademo.camera.MediaCodecWrap
+import com.practice.camerademo.camera.VideoDecoder
+import com.practice.camerademo.camera.VideoEncoder
 import com.practice.camerademo.flv.FlvConst
 import com.practice.camerademo.flv.FlvTag
 import com.practice.camerademo.flv.FlvUnpack
-import com.practice.camerademo.image.ImageUtils
+import com.practice.camerademo.gl.MyGLRender
+import com.practice.camerademo.image.Yuv
 import com.simple.rtmp.DefaultRtmpClient
 import com.simple.rtmp.RtmpClient
 import com.simple.rtmp.output.FlvWriter
 import com.simple.rtmp.output.RtmpStreamWriter
+import kotlinx.android.synthetic.main.activity_player.*
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
 @RequiresApi(Build.VERSION_CODES.N)
 class PlayerActivity : AppCompatActivity(), View.OnClickListener {
@@ -31,7 +35,6 @@ class PlayerActivity : AppCompatActivity(), View.OnClickListener {
     private lateinit var etUrl: EditText
     private lateinit var btDownload: Button
     private lateinit var btPlayFlie: Button
-    private lateinit var mTextureView: TextureView
 
     private var mState = State.PREPARE
     private val rtmpUrl = "rtmp://192.168.137.1:1935/live?livestream"
@@ -41,7 +44,13 @@ class PlayerActivity : AppCompatActivity(), View.OnClickListener {
     private var mFileInputStream: FileInputStream? = null
     private var mFileOutputStream: FileOutputStream? = null
     private var mFlvUnpack: FlvUnpack? = null
-    private var mVideoCodec: MediaCodecWrap? = null
+    private var mVideoDecoder: VideoDecoder? = null
+    private var decoderReady = false
+    private var readyLock = Object()
+
+    private var mPlayExecutor: ExecutorService? = null
+
+    private var mRender: MyGLRender? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -51,30 +60,15 @@ class PlayerActivity : AppCompatActivity(), View.OnClickListener {
         etUrl.setText(rtmpUrl)
         btDownload = findViewById<Button>(R.id.bt_start_download).apply { setOnClickListener(this@PlayerActivity) }
         btPlayFlie = findViewById<Button>(R.id.bt_start_play_file).apply { setOnClickListener(this@PlayerActivity) }
-        mTextureView = findViewById<TextureView>(R.id.surface).apply {
-            surfaceTextureListener = object : TextureView.SurfaceTextureListener {
-                override fun onSurfaceTextureSizeChanged(texture: SurfaceTexture, width: Int, height: Int) = Unit
-                override fun onSurfaceTextureDestroyed(texture: SurfaceTexture) = true
-                override fun onSurfaceTextureUpdated(texture: SurfaceTexture) = Unit
-                override fun onSurfaceTextureAvailable(texture: SurfaceTexture, width: Int, height: Int) = initCodec()
-            }
-        }
+
+        initSurface()
     }
 
-    private fun initCodec() {
-        val texture = mTextureView.surfaceTexture
-//        texture.setOnFrameAvailableListener {  }
-//        texture.setDefaultBufferSize(1920, 1080)
-        val surface = Surface(texture)
-        mVideoCodec = MediaCodecWrap(MediaCodecWrap.AVC, 1920, 1080, encoder = false, decodeSurface = surface)
-//        mVideoCodec = MediaCodecWrap(MediaCodecWrap.AVC, 1920, 1080, encoder = false).apply {
-//            start { byteBuffer, _ ->
-//                val byteArray = ByteArray(byteBuffer.remaining())
-//                byteBuffer.get(byteArray)
-//                val picFile = File(filesDir, "decoded_pic_${System.currentTimeMillis()}.jpg")
-//                ImageUtils.toPicture(byteArray, picFile, needAlign = true)
-//            }
-//        }
+    private fun initSurface() {
+        mRender = MyGLRender(gl_surface)
+        gl_surface.setEGLContextClientVersion(2)
+        gl_surface.setRenderer(mRender)
+        gl_surface.renderMode = GLSurfaceView.RENDERMODE_WHEN_DIRTY
     }
 
     override fun onClick(v: View?) {
@@ -84,20 +78,14 @@ class PlayerActivity : AppCompatActivity(), View.OnClickListener {
                     mState = State.DOWNLOADING
                     btDownload.setText(R.string.stop)
                     startDownload()
-                } else {
-                    btDownload.setText(R.string.start_download)
-                    rtmpClient?.shutdown()
-                }
+                } else stop()
             }
             R.id.bt_start_play_file -> {
                 if (mState == State.PREPARE) {
                     mState = State.PLAYING
                     btPlayFlie.setText(R.string.stop)
                     startPlayFile()
-                } else {
-                    btPlayFlie.setText(R.string.start_play_file)
-                    mFlvUnpack?.close()
-                }
+                } else stop()
             }
         }
     }
@@ -115,33 +103,67 @@ class PlayerActivity : AppCompatActivity(), View.OnClickListener {
     }
 
     private fun startPlayFile() {
+        if (mPlayExecutor == null) {
+            mPlayExecutor = Executors.newSingleThreadExecutor()
+        }
         KLog.t("start play flv")
         val file = File(filesDir, "my_flv.flv")
         mFileInputStream = FileInputStream(file)
-
-//        val avcFile = File(filesDir, "my_flv_avc")
-//        mFileOutputStream = FileOutputStream(avcFile)
-
         mFlvUnpack = FlvUnpack().apply {
             callback = object : FlvUnpack.Callback {
                 override fun onFlvTagAvailable(tag: FlvTag?) {
                     if (tag == null) {
-                        stop()
+                        KLog.d("file read over")
+                        mFlvUnpack?.close()
+                        mFlvUnpack = null
+                        mVideoDecoder?.inputData(null, 0)
                         return
                     }
                     when (tag.type) {
-                        FlvConst.FLV_DATA_TYPE_SCRIPT -> Unit
+                        FlvConst.FLV_DATA_TYPE_SCRIPT -> {
+                            initDecoder(tag)
+                            while (!decoderReady) {
+                                synchronized(readyLock) {
+                                    readyLock.wait()
+                                }
+                            }
+                        }
                         FlvConst.FLV_DATA_TYPE_AUDIO -> Unit
                         FlvConst.FLV_DATA_TYPE_VIDEO -> {
-                            mVideoCodec?.inputData(tag.data!!, tag.timeStamp.toLong())
+                            mVideoDecoder?.inputData(tag.data, tag.timeStamp.toLong())
                         }
                     }
                 }
             }
+            Thread { start(mFileInputStream!!) }.start()
         }
-        Thread {
-            mFlvUnpack?.start(mFileInputStream!!)
-        }.start()
+    }
+
+    private var lastUpdateTime = 0L
+    private fun initDecoder(tag: FlvTag) {
+        val width = tag.width?.toInt() ?: 0
+        val height = tag.height?.toInt() ?: 0
+        mRender?.update(width, height)
+        mVideoDecoder = VideoDecoder(VideoEncoder.AVC, width, height).apply {
+            callback = object : VideoDecoder.Callback {
+                override fun outputDataAvailable(output: Yuv, info: MediaCodec.BufferInfo) {
+                    // 手动控制 fps=25
+                    val current = System.currentTimeMillis()
+                    if (lastUpdateTime + 40 > current) {
+                        Thread.sleep(lastUpdateTime + 40 - current)
+                    }
+                    lastUpdateTime = System.currentTimeMillis()
+                    mRender?.update(output.yData, output.uData, output.vData)
+                }
+            }
+            start {
+                KLog.d("decoder start")
+                synchronized(readyLock) {
+                    decoderReady = true
+                    readyLock.notifyAll()
+                }
+            }
+        }
     }
 
     private fun stop() {
@@ -151,18 +173,21 @@ class PlayerActivity : AppCompatActivity(), View.OnClickListener {
             btPlayFlie.setText(R.string.start_play_file)
         }
 
+        decoderReady = false
+        mVideoDecoder?.close()
+        mVideoDecoder = null
         rtmpClient?.shutdown()
         rtmpClient = null
         mFlvUnpack?.close()
         mFlvUnpack = null
         mFileOutputStream?.close()
         mFileOutputStream = null
+        mPlayExecutor?.shutdown()
+        mPlayExecutor = null
     }
 
     override fun onStop() {
         super.onStop()
-        rtmpClient?.shutdown()
-        mFlvUnpack?.close()
-        mFileOutputStream?.close()
+        stop()
     }
 }
