@@ -7,15 +7,11 @@ import android.graphics.ImageFormat
 import android.graphics.SurfaceTexture
 import android.hardware.camera2.*
 import android.media.ImageReader
-import android.media.MediaCodec
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.HandlerThread
-import android.view.Surface
-import android.view.TextureView
-import android.view.View
-import android.view.Window
+import android.view.*
 import android.widget.Button
 import android.widget.Toast
 import androidx.annotation.RequiresApi
@@ -25,9 +21,11 @@ import com.practice.camerademo.KLog
 import com.practice.camerademo.R
 import com.practice.camerademo.flv.FlvPacket
 import com.practice.camerademo.image.ImageUtils
+import com.practice.camerademo.publish.DefaultRtmpPublisher
 import kotlinx.android.synthetic.main.activity_camera.*
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import java.io.File
-import java.nio.ByteBuffer
 
 @RequiresApi(Build.VERSION_CODES.N)
 class CameraActivity : AppCompatActivity(), View.OnClickListener {
@@ -44,7 +42,8 @@ class CameraActivity : AppCompatActivity(), View.OnClickListener {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        supportRequestWindowFeature(Window.FEATURE_NO_TITLE);
+        supportRequestWindowFeature(Window.FEATURE_NO_TITLE)
+        window.setFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON, WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         setContentView(R.layout.activity_camera)
         findViewById<Button>(R.id.bt_photo).setOnClickListener(this)
         findViewById<Button>(R.id.bt_gif).setOnClickListener(this)
@@ -126,7 +125,27 @@ class CameraActivity : AppCompatActivity(), View.OnClickListener {
             R.id.bt_photo -> if (state == CaptureState.PREVIEW) state = CaptureState.PHOTO
             R.id.bt_gif -> if (state == CaptureState.PREVIEW) state = CaptureState.GIF
             R.id.bt_record -> startRecord()
-            R.id.bt_push -> Unit
+            R.id.bt_push -> startPublish()
+        }
+    }
+
+    private fun startPublish() {
+        if (state == CaptureState.PREVIEW) {
+            state = CaptureState.PUBLISH
+            bt_push.setText(R.string.stop)
+            val publisher = DefaultRtmpPublisher("rtmp://192.168.137.1:1935/live?livestream")
+            GlobalScope.launch {
+                if (publisher.connect())
+                    mFlvPacket = FlvPacket(1080, 1920).also {
+                        it.publish(publisher)
+                        startEncode()
+                    }
+            }
+        } else if (state == CaptureState.PUBLISH) {
+            state = CaptureState.PREVIEW
+            bt_push.setText(R.string.push)
+            mVideoEncoder?.stop()
+            mFlvPacket?.stop()
         }
     }
 
@@ -136,17 +155,9 @@ class CameraActivity : AppCompatActivity(), View.OnClickListener {
             state = CaptureState.RECORD
             bt_record.setText(R.string.stop)
             val file = File(filesDir, "my_flv.flv")
-            mFlvPacket = FlvPacket().also { it.start(file) }
-            mVideoEncoder = VideoEncoder(VideoEncoder.AVC, 1080, 1920).apply {
-                callback = object : VideoEncoder.Callback {
-                    override fun outputDataAvailable(output: ByteBuffer, info: MediaCodec.BufferInfo) {
-                        KLog.d("onEncodedDataAvailable ${output.remaining()}")
-                        mFlvPacket?.writeVideoFrame(output, info)
-                    }
-                }
-                start {
-                    startSession()
-                }
+            mFlvPacket = FlvPacket(1080, 1920).also {
+                it.start(file)
+                startEncode()
             }
         } else {
             state = CaptureState.PREVIEW
@@ -154,6 +165,17 @@ class CameraActivity : AppCompatActivity(), View.OnClickListener {
             bt_record.setText(R.string.record)
             mVideoEncoder?.stop()
             mFlvPacket?.stop()
+            mFlvPacket = null
+        }
+    }
+
+    private fun startEncode() {
+        mVideoEncoder = VideoEncoder(VideoEncoder.AVC, 1080, 1920) { output, info ->
+            KLog.d("onEncodedDataAvailable ${output.remaining()}")
+            mFlvPacket?.writeVideoFrame(output, info)
+        }
+        mVideoEncoder?.start {
+            startSession()
         }
     }
 

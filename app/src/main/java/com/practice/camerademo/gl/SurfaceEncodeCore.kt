@@ -24,7 +24,7 @@ import java.util.concurrent.TimeUnit
  */
 @RequiresApi(Build.VERSION_CODES.JELLY_BEAN_MR2)
 class SurfaceEncodeCore(private val width: Int, private val height: Int) {
-    private val TAG = "KLog-SurfaceEncodeCore"
+    private val TAG = "SurfaceEncodeCore"
     private val eglEnv by lazy {
         EglEnv(width, height)
     }

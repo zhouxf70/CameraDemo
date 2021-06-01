@@ -1,5 +1,5 @@
 package com.practice.camerademo.player
 
 enum class State {
-    PREPARE,DOWNLOADING,PLAYING
+    PREPARE,DOWNLOAD,PLAY_FILE,PLAY_RTMP
 }

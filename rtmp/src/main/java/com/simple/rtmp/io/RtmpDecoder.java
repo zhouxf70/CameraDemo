@@ -1,10 +1,8 @@
 package com.simple.rtmp.io;
 
-import java.io.IOException;
-import java.io.InputStream;
-
 import com.simple.rtmp.KLog;
 import com.simple.rtmp.io.packets.Abort;
+import com.simple.rtmp.io.packets.Acknowledgement;
 import com.simple.rtmp.io.packets.Audio;
 import com.simple.rtmp.io.packets.Command;
 import com.simple.rtmp.io.packets.Data;
@@ -16,12 +14,15 @@ import com.simple.rtmp.io.packets.UserControl;
 import com.simple.rtmp.io.packets.Video;
 import com.simple.rtmp.io.packets.WindowAckSize;
 
+import java.io.IOException;
+import java.io.InputStream;
+
 /**
- *
  * @author francois
  */
 public class RtmpDecoder {
 
+    private final static boolean debug = false;
     private RtmpSessionInfo rtmpSessionInfo;
 
     public RtmpDecoder(RtmpSessionInfo rtmpSessionInfo) {
@@ -30,7 +31,7 @@ public class RtmpDecoder {
 
     public RtmpPacket readPacket(InputStream in) throws IOException {
 
-        KLog.d("====  readPacket(): called =====");
+        if (debug) KLog.d("====  readPacket(): called =====");
         RtmpHeader header = RtmpHeader.readHeader(in, rtmpSessionInfo);
         RtmpPacket rtmpPacket;
         KLog.d("readPacket(): header.messageType: " + header.getMessageType());
@@ -40,17 +41,17 @@ public class RtmpDecoder {
         chunkStreamInfo.setPrevHeaderRx(header);
 
         if (header.getPacketLength() > rtmpSessionInfo.getChunkSize()) {
-            KLog.d("readPacket(): packet size (" + header.getPacketLength() + ") is bigger than chunk size (" + rtmpSessionInfo.getChunkSize() + "); storing chunk data");
+            if (debug) KLog.d("readPacket(): packet size (" + header.getPacketLength() + ") is bigger than chunk size (" + rtmpSessionInfo.getChunkSize() + "); storing chunk data");
             // This packet consists of more than one chunk; store the chunks in the chunk stream until everything is read
             if (!chunkStreamInfo.storePacketChunk(in, rtmpSessionInfo.getChunkSize())) {
-                KLog.d(" readPacket(): returning null because of incomplete packet");
+                if (debug) KLog.d(" readPacket(): returning null because of incomplete packet");
                 return null; // packet is not yet complete
             } else {
-                KLog.d(" readPacket(): stored chunks complete packet; reading packet");
+                if (debug) KLog.d(" readPacket(): stored chunks complete packet; reading packet");
                 in = chunkStreamInfo.getStoredPacketInputStream();
             }
         } else {
-            KLog.d("readPacket(): packet size (" + header.getPacketLength() + ") is LESS than chunk size (" + rtmpSessionInfo.getChunkSize() + "); reading packet fully");
+            if (debug) KLog.d("readPacket(): packet size (" + header.getPacketLength() + ") is LESS than chunk size (" + rtmpSessionInfo.getChunkSize() + "); reading packet fully");
         }
 
         switch (header.getMessageType()) {
@@ -58,8 +59,8 @@ public class RtmpDecoder {
             case SET_CHUNK_SIZE: {
                 SetChunkSize setChunkSize = new SetChunkSize(header);
                 setChunkSize.readBody(in);
-                KLog.d("readPacket(): Setting chunk size to: " + setChunkSize.getChunkSize());
-                rtmpSessionInfo.setChunkSize(setChunkSize.getChunkSize());                
+                if (debug) KLog.d("readPacket(): Setting chunk size to: " + setChunkSize.getChunkSize());
+                rtmpSessionInfo.setChunkSize(setChunkSize.getChunkSize());
                 return null;
             }
             case ABORT:
@@ -86,10 +87,13 @@ public class RtmpDecoder {
             case DATA_AMF0:
                 rtmpPacket = new Data(header);
                 break;
+            case ACKNOWLEDGEMENT:
+                rtmpPacket = new Acknowledgement(header);
+                break;
             default:
                 throw new IOException("No packet body implementation for message type: " + header.getMessageType());
-        }                
-        rtmpPacket.readBody(in);                        
+        }
+        rtmpPacket.readBody(in);
         return rtmpPacket;
     }
 }

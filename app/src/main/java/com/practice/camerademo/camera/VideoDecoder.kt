@@ -19,6 +19,7 @@ class VideoDecoder(
     private val decodeSurface: Surface? = null
 ) {
 
+    private val debug = true
     private var state = CodecState.PREPARE
     private var mediaCodec: MediaCodec? = null
     private var inputHandler: Handler? = null
@@ -61,7 +62,8 @@ class VideoDecoder(
     private fun outputData() {
         while (true) {
             val bufferInfo = MediaCodec.BufferInfo()
-            val index = mediaCodec!!.dequeueOutputBuffer(bufferInfo, -1).also { log("output index = $it") }
+            val index = mediaCodec!!.dequeueOutputBuffer(bufferInfo, -1)
+            if (debug) KLog.d("output index = $index")
             if (index < 0 || state != CodecState.RUNNING) break
 
             val outputImage = mediaCodec?.getOutputImage(index)!!
@@ -81,7 +83,8 @@ class VideoDecoder(
                 return@post
             }
             try {
-                val index = mediaCodec!!.dequeueInputBuffer(-1).also { log("input index = $it") }
+                val index = mediaCodec!!.dequeueInputBuffer(-1)
+                if (debug) KLog.d("input index = $index")
                 if (index >= 0) {
                     val inputBuffer = mediaCodec!!.getInputBuffer(index)!!
                     inputBuffer.put(input)
@@ -89,7 +92,7 @@ class VideoDecoder(
                     mediaCodec!!.queueInputBuffer(index, 0, inputBuffer.remaining(), ts, 0)
                 }
             } catch (e: IllegalStateException) {
-                log(e)
+                KLog.e(e)
                 e.printStackTrace()
             }
         }
@@ -128,10 +131,6 @@ class VideoDecoder(
 
     interface Callback {
         fun outputDataAvailable(output: Yuv, info: MediaCodec.BufferInfo)
-    }
-
-    private fun log(msg: Any?) {
-//        KLog.d(msg)
     }
 
 }

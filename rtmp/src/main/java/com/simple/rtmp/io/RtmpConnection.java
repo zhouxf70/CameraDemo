@@ -141,7 +141,7 @@ public class RtmpConnection implements RtmpClient, PacketRxHandler, ThreadContro
             //KLog.i("+++++++  WRITING PLAY packet ++++++++");
             //writeThread.send(play);
             // Set buffer length of the message stream to 5000ms (just Flash Player)
-            final ChunkStreamInfo chunkStreamInfo = rtmpSessionInfo.getChunkStreamInfo(ChunkStreamInfo.CONTROL_CHANNEL);
+            final ChunkStreamInfo chunkStreamInfo = rtmpSessionInfo.getChunkStreamInfo(ChunkStreamInfo.RTMP_CONTROL_CHANNEL);
 
             // Set buffer length of message stream 0 to 5000ms (just Flash Player)
             UserControl userControl = new UserControl(UserControl.Type.SET_BUFFER_LENGTH, chunkStreamInfo);
@@ -291,7 +291,7 @@ public class RtmpConnection implements RtmpClient, PacketRxHandler, ThreadContro
                         UserControl ping = (UserControl) rtmpPacket;
                         switch (ping.getType()) {
                             case PING_REQUEST: {
-                                ChunkStreamInfo channelInfo = rtmpSessionInfo.getChunkStreamInfo(ChunkStreamInfo.CONTROL_CHANNEL);
+                                ChunkStreamInfo channelInfo = rtmpSessionInfo.getChunkStreamInfo(ChunkStreamInfo.RTMP_CONTROL_CHANNEL);
                                 KLog.d("handleRxPacketLoop(): Sending PONG reply..");
                                 UserControl pong = new UserControl(ping, channelInfo);
                                 writeThread.send(pong);

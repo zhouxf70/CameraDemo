@@ -1,4 +1,4 @@
-package com.practice.camerademo.flv;
+package com.practice.camerademo.avc;
 
 
 /**

@@ -10,9 +10,8 @@ import java.nio.ByteBuffer
 /**
  * 将flv流解包，生成h264视频流和aac音频流
  */
-class FlvUnpack {
+class FlvUnpack(val callback: (FlvTag?) -> Unit) {
 
-    var callback: Callback? = null
     private lateinit var input: InputStream
     private var acvConfig = false // 是否已读取h264的ssp和pps
     private var start = false
@@ -28,14 +27,13 @@ class FlvUnpack {
     fun close() {
         start = false
         input.close()
-        callback = null
     }
 
     private fun readTag() {
         while (start) {
-            val tag = readTagHeader()
+            val tag = readTagHeader().also { KLog.d(it) }
             if (tag == null) {
-                callback?.onFlvTagAvailable(null)
+                callback.invoke(tag)
                 start = false
                 break
             }
@@ -57,11 +55,13 @@ class FlvUnpack {
                     }
                 }
                 FlvConst.FLV_DATA_TYPE_AUDIO -> setAudioTag(tag)
+                else -> throw Exception("error type : ${tag.type}")
             }
             // 读取previousTagLength并检测长度是否正确
             val previousTagLength = Util.readUnsignedInt32(input)
-            if (previousTagLength != tag.size + 11) throw Exception("read data error")
-            callback?.onFlvTagAvailable(tag)
+            if (previousTagLength != tag.size + 11)
+                throw Exception("read data error : previousTagLength=$previousTagLength")
+            callback.invoke(tag)
         }
     }
 
@@ -173,10 +173,10 @@ class FlvUnpack {
                             tag.duration = value.value.also { KLog.d("duration : $it") }
                         }
                         if (key.value == "width" && value is AmfNumber) {
-                            tag.duration = value.value.also { KLog.d("width : $it") }
+                            tag.width = value.value.also { KLog.d("width : $it") }
                         }
                         if (key.value == "height" && value is AmfNumber) {
-                            tag.duration = value.value.also { KLog.d("height : $it") }
+                            tag.height = value.value.also { KLog.d("height : $it") }
                         }
                     }
                 }
@@ -198,7 +198,4 @@ class FlvUnpack {
         }
     }
 
-    interface Callback {
-        fun onFlvTagAvailable(tag: FlvTag?)
-    }
 }

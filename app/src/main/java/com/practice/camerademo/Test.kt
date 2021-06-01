@@ -9,7 +9,6 @@ import java.io.File
 import java.io.FileOutputStream
 import java.nio.ByteBuffer
 
-@InternalCoroutinesApi
 fun main() {
     testBuffer()
 }

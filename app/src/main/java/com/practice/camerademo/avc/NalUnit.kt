@@ -1,4 +1,4 @@
-package com.practice.camerademo.flv
+package com.practice.camerademo.avc
 
 /**
  * H.264 的nal单元

@@ -15,20 +15,21 @@ class VideoEncoder(
     private val type: String,
     private val width: Int,
     private val height: Int,
-    private val fps: Int = 30
+    private val fps: Int = 30,
+    private val callback: (ByteBuffer, MediaCodec.BufferInfo) -> Unit
 ) {
 
+    private var debug = false
     private var state = CodecState.PREPARE
     private var mediaCodec: MediaCodec? = null
     private var encodeCore: SurfaceEncodeCore? = null
     var encoderSurface: Surface? = null
-    var callback: Callback? = null
 
     init {
         mediaCodec = MediaCodec.createEncoderByType(type).apply {
             val mediaFormat = MediaFormat.createVideoFormat(type, width, height)
             mediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
-            mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 5000 * 1024)
+            mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 100 * 1024)
             mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, fps)
             mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1)
             configure(mediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
@@ -64,12 +65,12 @@ class VideoEncoder(
     private fun outputData() {
         while (true) {
             val bufferInfo = MediaCodec.BufferInfo()
-            val index = mediaCodec!!.dequeueOutputBuffer(bufferInfo, -1).also { KLog.d("output index = $it") }
+            val index = mediaCodec!!.dequeueOutputBuffer(bufferInfo, 100).also { if (debug) KLog.d("output index = $it") }
             if (index < 0 || state != CodecState.RUNNING) break
 
             val outputBuffer = mediaCodec!!.getOutputBuffer(index)
             if (outputBuffer != null)
-                callback?.outputDataAvailable(outputBuffer, bufferInfo)
+                callback.invoke(outputBuffer, bufferInfo)
             mediaCodec!!.releaseOutputBuffer(index, true)
         }
     }
@@ -102,9 +103,4 @@ class VideoEncoder(
         const val AVC = MediaFormat.MIMETYPE_VIDEO_AVC
         const val HEVC = "video/hevc"
     }
-
-    interface Callback {
-        fun outputDataAvailable(output: ByteBuffer, info: MediaCodec.BufferInfo)
-    }
-
 }

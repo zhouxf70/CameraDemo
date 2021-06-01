@@ -11,7 +11,7 @@ import java.nio.ByteOrder;
  * Created by Jack on 2017/12/9.
  */
 public class GLProgram {
-    static final String TAG = "GLProgram";
+    static final String TAG = "KLog-GLProgram";
 
     // program id
     private int _program;
